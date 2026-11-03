@@ -99,3 +99,28 @@ def eliminar_libro(id: int, session: Session = Depends(get_session)):
         session.delete(vinculo)
     session.delete(libro)
     session.commit()
+
+
+@router.post(
+    "/{id}/autores/{autor_id}",
+    response_model=LibroRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def asociar_autor(
+    id: int, autor_id: int, session: Session = Depends(get_session)
+):
+    libro = session.get(Libro, id)
+    if libro is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Libro no encontrado"
+        )
+    autor = session.get(Autor, autor_id)
+    if autor is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Autor no encontrado"
+        )
+    vinculo = session.get(LibroAutor, (libro.id, autor.id))
+    if vinculo is None:
+        session.add(LibroAutor(libro_id=libro.id, autor_id=autor.id))
+        session.commit()
+    return _libro_read(session, libro)
