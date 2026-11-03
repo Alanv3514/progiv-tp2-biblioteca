@@ -14,6 +14,12 @@ class SocioCreate(SQLModel):
     activo: bool = True
 
 
+class SocioUpdate(SQLModel):
+    nombre: str | None = None
+    email: str | None = None
+    activo: bool | None = None
+
+
 class SocioRead(SQLModel):
     id: int
     nombre: str
