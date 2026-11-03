@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from database import create_tables
-from routers import autores
+from routers import autores, libros
 
 
 @asynccontextmanager
@@ -13,6 +13,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Biblioteca", lifespan=lifespan)
 
 app.include_router(autores.router)
+app.include_router(libros.router)
 
 
 @app.get("/")

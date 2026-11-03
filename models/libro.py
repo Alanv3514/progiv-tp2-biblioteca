@@ -13,8 +13,15 @@ class Libro(SQLModel, table=True):
 class LibroCreate(SQLModel):
     titulo: str
     isbn: str
-    stock: int
+    stock: int = Field(ge=0)
     anio: int
+
+
+class LibroUpdate(SQLModel):
+    titulo: str | None = None
+    isbn: str | None = None
+    stock: int | None = Field(default=None, ge=0)
+    anio: int | None = None
 
 
 class LibroRead(SQLModel):
