@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
 from database import get_session
-from models.autor import AutorRead
+from models.autor import Autor, AutorRead
 from models.libro import Libro, LibroCreate, LibroRead, LibroUpdate
 from models.libro_autor import LibroAutor
 
