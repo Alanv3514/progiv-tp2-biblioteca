@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
 from database import get_session
+from models.prestamo import PrestamoRead
 from models.socio import Socio, SocioCreate, SocioRead, SocioUpdate
+from services import prestamos as prestamo_service
 
 router = APIRouter(prefix="/socios", tags=["socios"])
 
@@ -72,3 +74,15 @@ def eliminar_socio(id: int, session: Session = Depends(get_session)):
         )
     session.delete(socio)
     session.commit()
+
+
+@router.get("/{id}/prestamos", response_model=list[PrestamoRead])
+def prestamos_socio(
+    id: int,
+    activos: bool | None = None,
+    session: Session = Depends(get_session),
+):
+    prestamos = prestamo_service.listar_prestamos_socio(
+        session, id, activos if activos is not None else False
+    )
+    return [PrestamoRead.model_validate(p) for p in prestamos]

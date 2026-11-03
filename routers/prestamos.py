@@ -14,3 +14,9 @@ def registrar_prestamo(
 ):
     prestamo = prestamo_service.registrar_prestamo(session, datos)
     return PrestamoRead.model_validate(prestamo)
+
+
+@router.post("/{id}/devolucion", response_model=PrestamoRead)
+def devolver_prestamo(id: int, session: Session = Depends(get_session)):
+    prestamo = prestamo_service.devolver_prestamo(session, id)
+    return PrestamoRead.model_validate(prestamo)

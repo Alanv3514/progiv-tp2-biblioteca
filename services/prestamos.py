@@ -60,3 +60,43 @@ def registrar_prestamo(session: Session, datos: PrestamoCreate) -> Prestamo:
     session.commit()
     session.refresh(prestamo)
     return prestamo
+
+
+def devolver_prestamo(session: Session, prestamo_id: int) -> Prestamo:
+    prestamo = session.get(Prestamo, prestamo_id)
+    if prestamo is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Prestamo no encontrado",
+        )
+    if prestamo.fecha_devolucion is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Prestamo ya devuelto",
+        )
+    ahora = datetime.now()
+    dias_de_atraso = (ahora - prestamo.fecha_vencimiento).days
+    prestamo.fecha_devolucion = ahora
+    prestamo.multa = max(dias_de_atraso, 0) * MULTA_POR_DIA
+    libro = session.get(Libro, prestamo.libro_id)
+    if libro is not None:
+        libro.stock += 1
+    session.add(prestamo)
+    session.commit()
+    session.refresh(prestamo)
+    return prestamo
+
+
+def listar_prestamos_socio(
+    session: Session, socio_id: int, activos: bool
+) -> list[Prestamo]:
+    socio = session.get(Socio, socio_id)
+    if socio is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Socio no encontrado",
+        )
+    query = select(Prestamo).where(Prestamo.socio_id == socio_id)
+    if activos:
+        query = query.where(Prestamo.fecha_devolucion == None)  # noqa: E711
+    return list(session.exec(query).all())
