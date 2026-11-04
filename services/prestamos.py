@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 
 from models.libro import Libro
 from models.prestamo import Prestamo, PrestamoCreate
-from models.socio import Socio
+from models.socio import ROL_BIBLIOTECARIO, Socio
 
 PLAZO_DIAS = 14
 MULTA_POR_DIA = 100.0
@@ -23,7 +23,7 @@ def _cantidad_activos(session: Session, socio_id: int) -> int:
     )
 
 
-def registrar_prestamo(session: Session, datos: PrestamoCreate) -> Prestamo:
+def registrar_prestamo(session: Session, datos: PrestamoCreate, quien: Socio) -> Prestamo:
     socio = session.get(Socio, datos.socio_id)
     if socio is None:
         raise HTTPException(
@@ -33,6 +33,12 @@ def registrar_prestamo(session: Session, datos: PrestamoCreate) -> Prestamo:
     if libro is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Libro no encontrado"
+        )
+    # el socio solo registra prestamos para si mismo; el bibliotecario, para cualquiera
+    if quien.rol != ROL_BIBLIOTECARIO and quien.id != datos.socio_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Un socio solo registra prestamos propios",
         )
     if not socio.activo:
         raise HTTPException(
@@ -48,6 +54,7 @@ def registrar_prestamo(session: Session, datos: PrestamoCreate) -> Prestamo:
             status_code=status.HTTP_409_CONFLICT,
             detail="Libro sin stock disponible",
         )
+    assert socio.id is not None and libro.id is not None
     libro.stock -= 1
     ahora = datetime.now()
     prestamo = Prestamo(

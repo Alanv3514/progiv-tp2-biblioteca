@@ -1,15 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
-from database import get_session
+from database import SessionDep
+from dependencies import requiere_rol
 from models.autor import Autor, AutorRead
 from models.libro import Libro, LibroCreate, LibroRead, LibroUpdate
 from models.libro_autor import LibroAutor
+from models.socio import ROL_BIBLIOTECARIO
+
+BIBLIOTECARIO = [Depends(requiere_rol(ROL_BIBLIOTECARIO))]
 
 router = APIRouter(prefix="/libros", tags=["libros"])
 
 
 def _libro_read(session: Session, libro: Libro) -> LibroRead:
+    assert libro.id is not None
     # autores se resuelven en la tabla de asociacion para evitar lazy loading
     autores = session.exec(
         select(Autor)
@@ -33,16 +38,16 @@ def _isbn_duplicado(session: Session, isbn: str, libro_id: int | None = None) ->
 
 @router.get("", response_model=list[LibroRead])
 def listar_libros(
-    disponibles: bool | None = None, session: Session = Depends(get_session)
+    session: SessionDep, disponibles: bool | None = None
 ):
     query = select(Libro)
     if disponibles:
         query = query.where(Libro.stock > 0)
-    return [_libro_read(session, l) for l in session.exec(query).all()]
+    return [_libro_read(session, un_libro) for un_libro in session.exec(query).all()]
 
 
 @router.get("/{id}", response_model=LibroRead)
-def obtener_libro(id: int, session: Session = Depends(get_session)):
+def obtener_libro(id: int, session: SessionDep):
     libro = session.get(Libro, id)
     if libro is None:
         raise HTTPException(
@@ -51,8 +56,13 @@ def obtener_libro(id: int, session: Session = Depends(get_session)):
     return _libro_read(session, libro)
 
 
-@router.post("", response_model=LibroRead, status_code=status.HTTP_201_CREATED)
-def crear_libro(datos: LibroCreate, session: Session = Depends(get_session)):
+@router.post(
+    "",
+    response_model=LibroRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=BIBLIOTECARIO,
+)
+def crear_libro(datos: LibroCreate, session: SessionDep):
     if _isbn_duplicado(session, datos.isbn):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="ISBN ya registrado"
@@ -64,9 +74,9 @@ def crear_libro(datos: LibroCreate, session: Session = Depends(get_session)):
     return _libro_read(session, libro)
 
 
-@router.put("/{id}", response_model=LibroRead)
+@router.put("/{id}", response_model=LibroRead, dependencies=BIBLIOTECARIO)
 def modificar_libro(
-    id: int, datos: LibroUpdate, session: Session = Depends(get_session)
+    id: int, datos: LibroUpdate, session: SessionDep
 ):
     libro = session.get(Libro, id)
     if libro is None:
@@ -86,8 +96,8 @@ def modificar_libro(
     return _libro_read(session, libro)
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def eliminar_libro(id: int, session: Session = Depends(get_session)):
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=BIBLIOTECARIO)
+def eliminar_libro(id: int, session: SessionDep):
     libro = session.get(Libro, id)
     if libro is None:
         raise HTTPException(
@@ -105,9 +115,10 @@ def eliminar_libro(id: int, session: Session = Depends(get_session)):
     "/{id}/autores/{autor_id}",
     response_model=LibroRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=BIBLIOTECARIO,
 )
 def asociar_autor(
-    id: int, autor_id: int, session: Session = Depends(get_session)
+    id: int, autor_id: int, session: SessionDep
 ):
     libro = session.get(Libro, id)
     if libro is None:
@@ -119,6 +130,7 @@ def asociar_autor(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Autor no encontrado"
         )
+    assert libro.id is not None and autor.id is not None
     vinculo = session.get(LibroAutor, (libro.id, autor.id))
     if vinculo is None:
         session.add(LibroAutor(libro_id=libro.id, autor_id=autor.id))
