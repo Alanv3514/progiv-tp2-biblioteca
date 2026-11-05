@@ -61,7 +61,9 @@ protegidos, mandá el header:
 Authorization: Bearer <token>
 ```
 
-En Swagger: botón **Authorize**, pegar `Bearer <token>`.
+En Swagger: botón **Authorize**, pegar **solo el token** (Swagger agrega
+el prefijo `Bearer ` por vos). Cada endpoint protegido muestra un
+candado 🔒 junto al método.
 
 - Bibliotecario sembrado en el primer arranque: `biblio@biblioteca.com` / `1234`
 - Los socios se registran por `POST /socios` con `nombre`, `email` y
